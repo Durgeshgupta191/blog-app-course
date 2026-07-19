@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { getBlogById } from "@/lib/blogs";
-import { likeBlogAction } from "@/app/actions";
+import { likeBlogAction, addToReadingListAction } from "@/app/actions";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { db } from "@/db";
+import { readingListEntries } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 type Params = Promise<{ id: string }>;
 
@@ -35,6 +40,25 @@ export default async function BlogDetailsPage({ params }: { params: Params }) {
         </div>
       </div>
     );
+  }
+
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user ? Number((session.user as any).id) : null;
+  const isAuthor = currentUserId === blog.userId;
+
+  let inReadingList = false;
+  if (currentUserId) {
+    const existing = await db
+      .select()
+      .from(readingListEntries)
+      .where(
+        and(
+          eq(readingListEntries.userId, currentUserId),
+          eq(readingListEntries.blogId, blogId)
+        )
+      )
+      .limit(1);
+    inReadingList = existing.length > 0;
   }
 
   return (
@@ -82,19 +106,34 @@ export default async function BlogDetailsPage({ params }: { params: Params }) {
         </div>
 
         {/* Content details & action buttons */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-6">
-          {/* External URL Link */}
-          <a
-            href={blog.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white px-6 font-semibold transition-all border border-zinc-700/50 shadow-md text-center"
-          >
-            Visit Website
-            <svg className="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* External URL Link */}
+            <a
+              href={blog.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white px-6 font-semibold transition-all border border-zinc-700/50 shadow-md text-center"
+            >
+              Visit Website
+              <svg className="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+
+            {/* Reading List button */}
+            {currentUserId && !isAuthor && !inReadingList && (
+              <form action={addToReadingListAction} className="flex">
+                <input type="hidden" name="blogId" value={blog.id} />
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto inline-flex h-11 items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-6 font-semibold transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
+                >
+                  Add to Reading List
+                </button>
+              </form>
+            )}
+          </div>
 
           {/* Likes form action */}
           <form action={likeBlogAction} className="flex">
