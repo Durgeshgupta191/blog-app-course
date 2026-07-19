@@ -53,6 +53,12 @@ export default function RootLayout({
                 >
                   Blogs
                 </Link>
+                <Link
+                  href="/users"
+                  className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                >
+                  Users
+                </Link>
               </nav>
             </div>
             <div className="flex items-center gap-4">
